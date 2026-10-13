@@ -1,6 +1,6 @@
 """P300 baseline v3: 16 channels, 0.1-15 Hz, GEDAI, linked mastoids, xDAWN + LDA.
 
-Spec and freeze criteria: BASELINE_PLAN.md. Stages:
+Method and freeze criteria: README.md. Stages:
 
   python p300_baseline_v3.py preprocess [sub ses ...]   cleaned continuous -> _baseline_cache/
   python p300_baseline_v3.py checks                     filter, P300 vs GEDAI, mastoid ratio, yield
@@ -20,8 +20,7 @@ from scipy.signal import resample_poly
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import p300_multisite as pm                       # noqa: E402
-from erp_common import _read_named_channels      # noqa: E402
+import multisite_data as md                      # noqa: E402
 
 CH16 = ["F7", "F3", "Fz", "F4", "F8", "FCz", "C3", "C4", "Pz", "POz",
         "PO7", "PO8", "P7", "P8", "M1", "M2"]
@@ -38,7 +37,7 @@ P3 = (TS >= round(0.3 * FS)) & (TS <= round(0.6 * FS))
 PTP = 100.0
 MIN_TARGETS = 20
 
-# bad-channel thresholds (fixed in BASELINE_PLAN.md before any result)
+# bad-channel thresholds (fixed before any result was looked at; see README.md)
 FLAT_SD = 1.0
 NOISY_Z = 5.0
 NOISY_RATIO = 2.0
@@ -47,6 +46,7 @@ MAST_CORR = 0.2
 CACHE = os.path.join(HERE, "_baseline_cache")
 OUT = HERE
 VARIANTS = ("gedai", "nogedai")
+N_JOBS = int(os.environ.get("EEG_MULTISITE_JOBS", "8"))   # parallel sessions in `preprocess`
 
 
 # ---------------------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ def _robust_sd(x):
 def bad_channels(x_rec: np.ndarray) -> list[tuple[str, str, float]]:
     """x_rec: (16, n) filtered µV at 256 Hz on the recording reference.
 
-    Revised 7 Oct 2026, before any classification (BASELINE_PLAN.md, threshold review):
+    Revised 7 Oct 2026, before any classification (README.md, bad-channel rules):
     - noisy needs z > 5 AND SD > 2x the median channel. With 16 channels the MAD of channel
       SDs is ~10-15% of the median, so healthy mastoids (1.4-1.9x) reached z 4-7 on z alone.
     - mastoid-pair correlation is computed after average reference, as the median over 2 s
@@ -100,14 +100,14 @@ def _raw(x_uv, fs, names):
 
 
 def preprocess(sub: str, ses: str) -> dict:
-    """Steps 1-9 of BASELINE_PLAN.md for both variants. Returns a session log row."""
+    """Preprocessing steps 1-9 (README.md) for both variants. Returns a session log row."""
     import mne
     os.makedirs(CACHE, exist_ok=True)
-    row = dict(subject=sub, session=ses, site=pm.site_of(ses))
-    p = pm.eeg_prefix(sub, ses)
+    row = dict(subject=sub, session=ses, site=md.site_of(ses))
+    p = md.eeg_prefix(sub, ses)
     if p is None:
         return {**row, "status": "no_eeg"}
-    ch, fs0 = _read_named_channels(p, CH16)
+    ch, fs0 = md.read_channels(p, CH16)
     miss = [c for c in CH16 if c not in ch]
     if miss:
         return {**row, "status": f"missing:{'/'.join(miss)}"}
@@ -190,7 +190,7 @@ def epochs(sub, ses, variant, ref="lm"):
     """Epochs for both marker sets over the common clean-trial mask (steps 10-11)."""
     x16, fs0 = load_clean(sub, ses, variant)
     x = reref(x16, ref)
-    tt = pm.trial_table(sub, ses)
+    tt = md.trial_table(sub, ses)
     to80 = lambda s: np.round(s * FS / fs0).astype(int)          # noqa: E731
     ep = {"corrected": _cut(x, to80(tt.cor_sample.values)),
           "uncorrected": _cut(x, to80(tt.raw_sample.values))}
@@ -231,7 +231,7 @@ def cv_scores(X, y, clf, n_repeats=10, seed=0):
 # stages
 # ---------------------------------------------------------------------------------------------
 def _sessions():
-    inv = pm.inventory()
+    inv = md.inventory()
     return inv[inv.has_eeg][["subject", "session"]].itertuples(index=False, name=None)
 
 
@@ -243,8 +243,8 @@ def stage_preprocess(pairs=None):
         try:
             return preprocess(s, e)
         except Exception as ex:                       # noqa: BLE001
-            return dict(subject=s, session=e, site=pm.site_of(e), status=f"error:{ex}")
-    rows = Parallel(n_jobs=8)(delayed(one)(s, e) for s, e in pairs)
+            return dict(subject=s, session=e, site=md.site_of(e), status=f"error:{ex}")
+    rows = Parallel(n_jobs=N_JOBS)(delayed(one)(s, e) for s, e in pairs)
     df = pd.DataFrame(rows)
     f = os.path.join(OUT, "baseline_sessions.csv")
     if os.path.exists(f):
@@ -307,7 +307,7 @@ def stage_checks():
                              lat_pz=np.nan if d is None else TS[P3][np.argmax(d[pz, P3])] / FS * 1000))
             # check 3: same trials under both references, rejection on Pz (as mastoid_p300_check)
             x16, fs0 = load_clean(r.subject, r.session, variant)
-            tt = pm.trial_table(r.subject, r.session)
+            tt = md.trial_table(r.subject, r.session)
             s80 = np.round(tt.cor_sample.values * FS / fs0).astype(int)
             eps = {ref: _cut(reref(x16, ref)[[pz]], s80)[:, 0] for ref in ("lm", "avg14")}
             good = np.ones(len(s80), bool)
@@ -397,7 +397,7 @@ def stage_classify():
 
 
 if __name__ == "__main__":
-    stage = sys.argv[1]
+    stage = sys.argv[1] if len(sys.argv) > 1 else ""
     if stage == "preprocess":
         a = sys.argv[2:]
         stage_preprocess(list(zip(a[::2], a[1::2])) if a else None)

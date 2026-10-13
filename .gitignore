@@ -1,11 +1,12 @@
-# Allow-list: this repo holds the pipeline code only. Results, plans, figures, participant
-# EEG and participant metadata stay local (EEG is in the BIDS release on GIN).
+# Allow-list. The repo holds the P300 baseline pipeline (two files) and its docs.
+# Everything else in this working tree stays local: EEG data (BIDS release on GIN), participant
+# metadata, caches, result tables, figures, plans and the other analysis scripts.
 /*
 !/.gitignore
 !/README.md
-!/P300_pipeline.py
+!/requirements.txt
 !/analysis/
 /analysis/*
-!/analysis/*.py
-/analysis/_*
+!/analysis/p300_baseline_v3.py
+!/analysis/multisite_data.py
 __pycache__/
