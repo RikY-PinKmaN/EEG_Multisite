@@ -15,6 +15,7 @@ This repository is code only. The EEG data are the BIDS release on GIN (not incl
 |---|---|
 | `analysis/p300_baseline_v3.py` | the pipeline: `preprocess`, `checks`, `classify` stages |
 | `analysis/multisite_data.py` | data access: BrainVision reader, session inventory, trial table with corrected + uncorrected markers |
+| `analysis/meeting_figs.py` | figures from the pipeline outputs: grand-average ERPs, topographies, classification strip plots |
 | `requirements.txt` | pinned versions the results were produced with |
 
 ## Setup
@@ -80,6 +81,28 @@ Outputs, all written to `analysis/`:
 
 `preprocess` can be re-run on a subset: it replaces those rows in `baseline_sessions.csv` and
 keeps the rest. `checks` and `classify` only use sessions whose status is `ok`.
+
+## Figures
+
+After `preprocess` and `classify` have run:
+
+```bash
+python analysis/meeting_figs.py
+```
+
+It rebuilds the session ERPs from `_baseline_cache/` with the same epoching, rejection and
+session inclusion the classifier used, and reads `baseline_scores.csv`. Writes to
+`analysis/figures/`:
+
+| File | Content |
+|---|---|
+| `meeting_erp_pz_gedai.png`, `meeting_erp_pz_nogedai.png`, `meeting_erp_fcz_gedai.png` | grand-average target / non-target ERPs per site (corrected solid, uncorrected dashed), difference waves, per-session P3b amplitude and latency |
+| `meeting_gedai_vs_nogedai_pz.png` | Pz difference wave with and without GEDAI on the sessions both variants classify |
+| `meeting_topo_gedai.png`, `meeting_topo_nogedai.png` | target − non-target topographies per site in 100 ms windows and the 0.3–0.6 s mean |
+| `meeting_classification.png` | per-session balanced accuracy and ROC-AUC, corrected vs uncorrected markers, with the shuffled-label chance line |
+
+It also writes `analysis/meeting_summary.csv` (classification medians per site) and prints the
+paired Wilcoxon test of corrected vs uncorrected markers.
 
 ## Method
 

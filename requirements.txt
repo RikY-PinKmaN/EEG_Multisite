@@ -7,3 +7,4 @@ joblib==1.5.2
 mne==1.10.1
 pyriemann==0.7
 gedai==0.60
+matplotlib==3.10.6
