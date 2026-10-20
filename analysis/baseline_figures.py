@@ -1,10 +1,13 @@
-"""Supervisor-meeting figures for the P3b baseline v3 (16 Oct 2026).
+"""Figures for the P300 baseline: grand-average ERPs, topographies, classification.
 
-Rebuilds grand-average ERPs and topographies from `_baseline_cache/` with exactly the epoching,
-rejection and session inclusion the classifier used (p300_baseline_v3.epochs, >= 20 targets),
-and plots `baseline_scores.csv`. Writes to figures/meeting_*.png and meeting_summary.csv.
+Run after `p300_baseline_v3.py preprocess` and `classify`. Rebuilds the session ERPs from
+`_baseline_cache/` with exactly the epoching, rejection and session inclusion the classifier
+used (p300_baseline_v3.epochs, >= 20 targets), and plots `baseline_scores.csv`.
 
-    .venv/bin/python analysis/meeting_figs.py
+    python analysis/baseline_figures.py
+
+Writes figures/erp_*.png, figures/topo_*.png, figures/gedai_vs_nogedai_pz.png,
+figures/classification.png and classification_summary.csv.
 """
 from __future__ import annotations
 import os
@@ -256,13 +259,13 @@ def main():
     dn = session_erps("nogedai")
     print(f"gedai sessions: {len(dg)} ({dg.groupby('site').size().to_dict()}), "
           f"nogedai: {len(dn)} ({dn.groupby('site').size().to_dict()})")
-    t1 = fig_erp_by_site(dg, "GEDAI", PZ, "meeting_erp_pz_gedai.png")
-    t2 = fig_erp_by_site(dn, "no-GEDAI", PZ, "meeting_erp_pz_nogedai.png")
-    fig_erp_by_site(dg, "GEDAI", FCZ, "meeting_erp_fcz_gedai.png")
-    fig_gedai_vs_nogedai(dg, dn, PZ, "meeting_gedai_vs_nogedai_pz.png")
-    topo_g = fig_topo(dg, "GEDAI", "meeting_topo_gedai.png")
-    topo_n = fig_topo(dn, "no-GEDAI", "meeting_topo_nogedai.png")
-    cls, sess = fig_classification("meeting_classification.png")
+    t1 = fig_erp_by_site(dg, "GEDAI", PZ, "erp_pz_gedai.png")
+    t2 = fig_erp_by_site(dn, "no-GEDAI", PZ, "erp_pz_nogedai.png")
+    fig_erp_by_site(dg, "GEDAI", FCZ, "erp_fcz_gedai.png")
+    fig_gedai_vs_nogedai(dg, dn, PZ, "gedai_vs_nogedai_pz.png")
+    topo_g = fig_topo(dg, "GEDAI", "topo_gedai.png")
+    topo_n = fig_topo(dn, "no-GEDAI", "topo_nogedai.png")
+    cls, sess = fig_classification("classification.png")
 
     print("\n=== P3b at Pz, GEDAI variant (classified sessions) ===")
     print(t1.round(2).to_string(index=False))
@@ -274,7 +277,7 @@ def main():
     print(topo_n[topo_n.window == "300–600 ms"].set_index("site")[b.CH14].round(2).to_string())
     print("\n=== classification medians by site ===")
     print(cls.round(3).to_string(index=False))
-    cls.to_csv(os.path.join(HERE, "meeting_summary.csv"), index=False)
+    cls.to_csv(os.path.join(HERE, "classification_summary.csv"), index=False)
 
     # paired corrected-vs-uncorrected test, primary config
     from scipy.stats import wilcoxon

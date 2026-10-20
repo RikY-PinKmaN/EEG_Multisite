@@ -1,4 +1,4 @@
-# Allow-list. The repo holds the P300 baseline pipeline, its figure script and its docs.
+# Allow-list. The repo holds the P300 baseline pipeline, its figure and QC scripts, and its docs.
 # Everything else in this working tree stays local: EEG data (BIDS release on GIN), participant
 # metadata, caches, result tables, figures, plans and the other analysis scripts.
 /*
@@ -9,5 +9,9 @@
 /analysis/*
 !/analysis/p300_baseline_v3.py
 !/analysis/multisite_data.py
-!/analysis/meeting_figs.py
+!/analysis/baseline_figures.py
+!/analysis/mastoid_qc.py
+!/analysis/mastoid_position_check.py
+!/analysis/mastoid_reference_check.py
+!/analysis/mastoid_figures.py
 __pycache__/
